@@ -1,0 +1,23 @@
+#!/bin/bash
+# Tuxudo's Ugly Shell Script(R)
+
+# Run memtest to check all memory, loop once, write output to /tmp/memtest.txt
+/usr/local/bin/memtest all 1 > /tmp/memtest.txt
+
+# Check if memtest file exists and process
+FILE="/tmp/memtest.txt"
+if [[ -f $FILE ]] ; then
+    # Read in memtest output and processs to cleanup
+	memtest_results=$(cat /tmp/memtest.txt | tr -d '\b\r' | sed -e 's/\|\/-\\//g' -e 's/\|\/-//g' -e 's/setting  //g' -e 's/testing  //g' -e 's/setting //g' -e 's/testing //g' -e 's/[0-9][0-9][0-9] of [0-9][0-9][0-9]//g' -e 's/[0-9][0-9] of [0-9][0-9][0-9]//g'  -e 's/[0-9] of [0-9][0-9][0-9]//g' -e 's/[0-9][0-9] of [0-9][0-9]//g' -e 's/[0-9] of [0-9][0-9]//g' -e 's/[0-9] of [0-9]//g' -e 's/ of [0-9][0-9]//g'  -e 's/ of [0-9]//g' -e 's/ of //g' -e 's/:     ok/:       ok/g' -e 's/:                                                         ok/:       ok/g' -e 's/:    1                ok/:       ok/g' -e 's/:                 1                ok/:       ok/g' -e 's/:                                                       ok/:       ok/g' | tail -n+10)
+    
+    # Write output to plist for pickup and reporting
+    /usr/libexec/PlistBuddy -c "Add :memtest string $memtest_results" /Library/Preferences/net.tuxudo.memtest.plist 2>/dev/null
+    /usr/libexec/PlistBuddy -c "Set :memtest $memtest_results" /Library/Preferences/net.tuxudo.memtest.plist 2>/dev/null
+    
+    # Save boolean if memtest passed
+    if [[ "${memtest_results}" == *"All tests passed"* ]] ; then
+        defaults write /Library/Preferences/net.tuxudo.memtest.plist memtest_pass -bool true
+    else
+        defaults write /Library/Preferences/net.tuxudo.memtest.plist memtest_pass -bool false
+    fi
+fi
